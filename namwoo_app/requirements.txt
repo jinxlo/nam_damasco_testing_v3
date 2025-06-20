@@ -1,0 +1,24 @@
+# Flask framework and utilities
+Flask>=2.3,<3.0
+python-dotenv>=1.0.0
+
+# OpenAI API client
+openai>=1.3.0,<2.0.0
+
+# Database (PostgreSQL + ORM + Vector support)
+SQLAlchemy>=2.0,<2.1
+psycopg2-binary>=2.9.0,<3.0.0  # PostgreSQL driver
+pgvector>=0.2.0,<0.3.0 # pgvector SQLAlchemy integration
+
+# WooCommerce API client
+woocommerce>=3.0.0,<4.0.0
+requests>=2.30.0,<3.0.0 # Dependency for woocommerce library
+
+# Background Scheduler
+APScheduler>=3.10.0,<4.0.0
+
+# Production WSGI Server (Recommended)
+gunicorn>=21.0.0,<22.0.0
+# HTML parsing and numerical computing
+beautifulsoup4>=4.12.2,<5.0.0
+numpy>=1.26,<2.0

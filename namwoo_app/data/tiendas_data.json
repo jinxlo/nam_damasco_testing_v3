@@ -1,0 +1,200 @@
+[
+  {
+    "city": "Barquisimeto",
+    "whsName": "Almacen Principal BARQUISIMETO",
+    "branchName": "BARQUISIMETO",
+    "address": "Avenida Venezuela, Entre Calles 10 y 11, Local Damasco, Sector Centro Este De Barquisimeto, Barquisimeto, Estado Lara. Zona Postal 3001."
+  },
+  {
+    "city": "Barquisimeto",
+    "whsName": "ALMACEN PRINCIPAL BARQUISIMETO II",
+    "branchName": "BARQUISIMETO 2",
+    "address": "Avenida Venezuela, Entre Calles 10 y 11, Local Damasco, Sector Centro Este De Barquisimeto, Barquisimeto, Estado Lara. Zona Postal 3001."
+  },
+  {
+    "city": "Cagua",
+    "whsName": "Almacen Principal CAGUA",
+    "branchName": "CAGUA",
+    "address": "Carretera Nacional de Cagua, con Calle Diego de Lozada, Local Damasco, Nro. 10-13, Urbanización Sabana Larga, Cagua, Estado Aragua. Zona Postal 2122."
+  },
+  {
+    "city": "Cagua",
+    "whsName": "Almacen Principal ARAGUA (Inactivo)",
+    "branchName": "CAGUA",
+    "address": "Carretera Nacional de Cagua, con Calle Diego de Lozada, Local Damasco, Nro. 10-13, Urbanización Sabana Larga, Cagua, Estado Aragua. Zona Postal 2122."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal BARBUR",
+    "branchName": "BARBUR",
+    "address": "Calle Colombia, Casa N° 35, Urbanización La Nueva Caracas, Caracas, Distrito Capital. Zona Postal 1030."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal CCCT",
+    "branchName": "CCCT",
+    "address": "Av. La Estancia, Local Damasco, CCCT, Piso C1, Local 47-N-07 y 47-N-01, Urbanización Chuao, Caracas, (Chacao), Estado Miranda. Zona Postal 1060."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL EL PARAISO",
+    "branchName": "EL PARAISO",
+    "address": "Av Jose Antonio Paez Cruce Con Av Loira, Local S/N, Tienda Damasco El Paraiso, Urb El Paraiso, Caracas, Dtto Capital."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA CALIFORNIA",
+    "branchName": "LA CALIFORNIA",
+    "address": "Av. Santiago De León, Edificio Tecníauto, Piso PB, Local PB, Urbanización La California Norte, Caracas, Estado Miranda. Zona Postal 1071."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA CANDELARIA",
+    "branchName": "LA CANDELARIA",
+    "address": "Av Este O, entre esquinas de Puente Anauco, Puente República, Cervecería y Teatro, Residencias Doral"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA TRINIDAD",
+    "branchName": "LA TRINIDAD",
+    "address": "Calle La Guairita, Edificio Centro Vas La Trinidad, Piso PB, Locales 1 y 2, Urbanización Ciudad Satélite, La Trinidad, Caracas, Estado Miranda. Zona Postal 1080."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LAS MERCEDES",
+    "branchName": "LAS MERCEDES",
+    "address": "Calle París entre Monterrey y Mucuchíes, Edificio San Miguel, Piso 1, Local Pb-02 y Pl-04, Urbanización Las Mercedes, Caracas, Estado Miranda. Zona Postal 1061."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal MUEBLERIA",
+    "branchName": "MUEBLERIA",
+    "address": "Calle Colombia, Entre Panamericana y El Cristo, Casa N° S/N, Sector Catia, Caracas, Distrito Capital. Zona Postal 1030."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal MUEBLES ANTUAN",
+    "branchName": "MUEBLES ANTUAN",
+    "address": "Avenida Sucre, Edificio Francisco Dorta, Piso P.B, Local P.B, Sector Catia, Caracas, Distrito Capital. Zona Postal 1030."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL NUEVA GRANADA",
+    "branchName": "NUEVA GRANADA",
+    "address": "Av Nueva Granada, Edificio Soler, Piso PB, Local Damasco, Urbanización El Cementerio, Caracas, Distrito Capital. Zona Postal 1040."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SABANA GRANDE",
+    "branchName": "SABANA GRANDE",
+    "address": "Calle Real de Sabana Grande, Edificio Damasco, urbanización Sabana Grande, Caracas, Distrito Capital. Zona Postal 1060."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SAN MARTIN 1",
+    "branchName": "SAN MARTIN 1",
+    "address": "Calle Sur 8, parcela N° 150, Local Damasco, Urbanización El Silencio, entre esquina Angelitos y Jesús, en la Ciudad de Caracas, Distrito Capital. Zona Postal 1020."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SAN MARTIN 2",
+    "branchName": "SAN MARTIN 2",
+    "address": "Av San Martín, entre esquina de Capuchinos y Jesús, Edificio Don Martín, Piso 1, Local 01, Zona San Martín, Caracas, Distrito Capital. Zona Postal 1010."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen principal san martin 4",
+    "branchName": "SAN MARTIN 4",
+    "address": "Av San Martín, Edificio Los Angelitos, Piso B y Mezzanina, Local 4, Sector San Juan, Caracas, Distrito Capital. Zona Postal 1020."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL TORRE CORPORATIVA",
+    "branchName": "TORRE CORPORATIVA",
+    "address": "n/a"
+  },
+  {
+    "city": "Guatire",
+    "whsName": "Almacen Principal GUATIRE 2022",
+    "branchName": "GUATIRE 2022",
+    "address": "n/a"
+  },
+  {
+    "city": "La Guaira",
+    "whsName": "Almacen Principal GUAIRA TERMINAL",
+    "branchName": "TERMINAL LA GUAIRA",
+    "address": "Av Soublette, Edificio Ávila Mar, Piso PB, Oficina 01, Sector El Cardonal, La Guaira, Municipio Vargas, Estado La Guaira. Zona Postal 1160."
+  },
+  {
+    "city": "Lechería",
+    "whsName": "Almacen Principal LECHERIA",
+    "branchName": "LECHERIAS",
+    "address": "Calle Jorge Rodríguez, Edificio Yaveth, Piso PB, Local 1, Sector Vistamar, Lechería, Estado Anzoátegui. Zona Postal 6016."
+  },
+  {
+    "city": "Los Teques",
+    "whsName": "Almacen Principal LOS TEQUES",
+    "branchName": "LOS TEQUES",
+    "address": "Calle Real del Llano de Miquilen, Edificio 15, Piso PB, Local PB, Sector El Llano, Los Teques, Estado Miranda. Zona Postal 1201."
+  },
+  {
+    "city": "Maracaibo",
+    "whsName": "Almacen Principal MARACAIBO",
+    "branchName": "MARACAIBO",
+    "address": "Calle 95, entre Avenidas 33 y 20, Local Nro 20-116, Sector Cañada Honda, Maracaibo, Estado Zulia. Zona Postal 4001."
+  },
+  {
+    "city": "Maracay",
+    "whsName": "Almacen Principal ARAGUA",
+    "branchName": "ARAGUA",
+    "address": "Av Bolívar, local 258, Barrio La Barraca I, Parroquia Madre María de San José, Municipio Girardot, Estado Aragua. Zona Postal 2103."
+  },
+  {
+    "city": "Maturín",
+    "whsName": "ALMACEN PRINCIPAL MATURIN",
+    "branchName": "MATURIN",
+    "address": "Av. Alirio Ugarte Pelayo, Maturín 6201, Monagas"
+  },
+  {
+    "city": "Puerto La Cruz",
+    "whsName": "ALMACEN PRINCIPAL PUERTO LA CRUZ",
+    "branchName": "PUERTO LA CRUZ",
+    "address": "5 C. Sucre, Puerto La Cruz 6023, Anzoátegui"
+  },
+  {
+    "city": "Puerto Ordaz",
+    "whsName": "Almacen Principal PUERTO ORDAZ",
+    "branchName": "PUERTO ORDAZ",
+    "address": "Calle Manzana 002, Parcela 013, Edificio Centro Empresarial Conterca, Piso PB, Locales Nros. 02, 03 y 04"
+  },
+  {
+    "city": "San Cristóbal",
+    "whsName": "Almacen Principal TACHIRA",
+    "branchName": "TACHIRA",
+    "address": "Calle 14, esquina con la Carrera 4, Edificio Comercial Boulton, Piso PB, Local 1, Urbanización Boulton, San Cristóbal, Estado Táchira. Zona Postal 5001."
+  },
+  {
+    "city": "San Felipe",
+    "whsName": "ALMACEN PRINCIPAL SAN FELIPE",
+    "branchName": "SAN FELIPE",
+    "address": "AV INTERCOMUNAL SAN FELIPE EL FUERTE, AV 4 ENTRE CALLES 2 Y 3 CC C.C HIPER LIDER SAN FELIPE NIVEL AVENIDA LOCAL N° 1"
+  },
+  {
+    "city": "Trujillo",
+    "whsName": "ALMACEN PRINCIPAL TRUJILLO",
+    "branchName": "TRUJILLO",
+    "address": "Urbanización La plata, frente la redoma Las banderas al lado del banco Provincial Valera"
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Almacen Principal VALENCIA",
+    "branchName": "VALENCIA",
+    "address": "Av 103 Carabobo, Local N° 97-57, Zona Casco Histórico, Municipio Valencia, Estado Carabobo. Zona Postal 2001."
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Almacén Principal Valencia 2",
+    "branchName": "VALENCIA 2",
+    "address": "Av 99 Miranda, 116-172 Calle 126, Autopista Regional del Centro, Urbanización Miranda, Municipio Valencia, Estado Carabobo. Zona Postal 2001."
+  }
+]

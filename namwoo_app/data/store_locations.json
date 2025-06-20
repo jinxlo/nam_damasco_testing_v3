@@ -1,0 +1,290 @@
+[
+  {
+    "city": "Barquisimeto",
+    "whsName": "Tienda BARQUISIMETO CENTRO",
+    "branchName": "BARQUISIMETO CENTRO",
+    "address": "Av. Venezuela entre calles 10 y 11, Barquisimeto, Lara. 0412-3167538. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Barquisimeto",
+    "whsName": "Almacen Principal BARQUISIMETO",
+    "branchName": "BARQUISIMETO",
+    "address": "n/a"
+  },
+  {
+    "city": "Barquisimeto",
+    "whsName": "ALMACEN PRINCIPAL BARQUISIMETO II",
+    "branchName": "BARQUISIMETO 2",
+    "address": "n/a"
+  },
+  {
+    "city": "Cagua",
+    "whsName": "Tienda CAGUA",
+    "branchName": "CAGUA",
+    "address": "Carretera Nacional Cagua La Villa, entre calle Las Acacias y Diego de Lozada, Cagua, Aragua. 0412-6119852. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Cagua",
+    "whsName": "Almacen Principal CAGUA",
+    "branchName": "CAGUA",
+    "address": "n/a"
+  },
+  {
+    "city": "Cagua",
+    "whsName": "Almacen Principal ARAGUA (Inactivo)",
+    "branchName": "CAGUA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SABANA GRANDE",
+    "branchName": "SABANA GRANDE",
+    "address": "Av. Casanova, entre Calle Coromoto y Segunda Calle de Bello Monte, Edif. Damasco, PB. Sabana Grande, Caracas."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal CCCT",
+    "branchName": "CCCT",
+    "address": "Av. La Estancia, C.C. Ciudad Tamanaco, Nivel C1, Local 45-01. Chuao, Caracas."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Damasco La Trinidad",
+    "branchName": "LA TRINIDAD",
+    "address": "Av. Principal de La Trinidad, C.C. Expreso La Trinidad, Nivel PB, Local L-01. La Trinidad, Caracas."
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SAN MARTIN 1",
+    "branchName": "SAN MARTIN 1",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal SAN MARTIN 2",
+    "branchName": "SAN MARTIN 2",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal MUEBLERIA",
+    "branchName": "MUEBLERIA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal MUEBLES ANTUAN",
+    "branchName": "MUEBLES ANTUAN",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LAS MERCEDES",
+    "branchName": "LAS MERCEDES",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA CANDELARIA",
+    "branchName": "LA CANDELARIA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen principal san martin 4",
+    "branchName": "SAN MARTIN 4",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL NUEVA GRANADA",
+    "branchName": "NUEVA GRANADA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA CALIFORNIA",
+    "branchName": "LA CALIFORNIA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL EL PARAISO",
+    "branchName": "EL PARAISO",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "ALMACEN PRINCIPAL TORRE CORPORATIVA",
+    "branchName": "TORRE CORPORATIVA",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal BARBUR",
+    "branchName": "BARBUR",
+    "address": "n/a"
+  },
+  {
+    "city": "Caracas",
+    "whsName": "Almacen Principal LA TRINIDAD",
+    "branchName": "LA TRINIDAD",
+    "address": "n/a"
+  },
+  {
+    "city": "Guatire",
+    "whsName": "Tienda GUATIRE BUENAVENTURA",
+    "branchName": "GUATIRE BUENAVENTURA",
+    "address": "Avenida Intercomunal, frente al C.C. Buena Aventura Place, Guatire, Miranda. 0412-3167516. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Guatire",
+    "whsName": "Almacen Principal GUATIRE 2022",
+    "branchName": "GUATIRE 2022",
+    "address": "n/a"
+  },
+  {
+    "city": "La Guaira",
+    "whsName": "Tienda LA GUAIRA TERMINAL",
+    "branchName": "LA GUAIRA TERMINAL",
+    "address": "Av. Soublette, Terminal de Pasajeros de La Guaira, Nivel PB, Local L-10. La Guaira, Vargas."
+  },
+  {
+    "city": "La Guaira",
+    "whsName": "Almacen Principal GUAIRA TERMINAL",
+    "branchName": "TERMINAL LA GUAIRA",
+    "address": "n/a"
+  },
+  {
+    "city": "Lechería",
+    "whsName": "Tienda LECHERIA C.C. Caribbean",
+    "branchName": "LECHERIA C.C. Caribbean",
+    "address": "Av. Intercomunal Jorge Rodríguez, Edif Yaveth, sector Vistamar, Lechería, Anzoátegui. 0412-6192419. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Lechería",
+    "whsName": "Almacen Principal LECHERIA",
+    "branchName": "LECHERIAS",
+    "address": "n/a"
+  },
+  {
+    "city": "Maracaibo",
+    "whsName": "Tienda MARACAIBO BELLA VISTA",
+    "branchName": "MARACAIBO BELLA VISTA",
+    "address": "Circunvalación 1, Av. 33 con calle 93, antiguo supermercado NASA, Maracaibo, Zulia. 0412-6192424. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Maracaibo",
+    "whsName": "Almacen Principal MARACAIBO",
+    "branchName": "MARACAIBO",
+    "address": "n/a"
+  },
+  {
+    "city": "Maracay",
+    "whsName": "Tienda MARACAY LAS DELICIAS",
+    "branchName": "MARACAY LAS DELICIAS",
+    "address": "Av. Bolívar, Al lado del Aero Expresos y de la estación de servicio San Jacinto, Maracay, Aragua. 0412-6452756. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Maracay",
+    "whsName": "Almacen Principal ARAGUA",
+    "branchName": "ARAGUA",
+    "address": "n/a"
+  },
+  {
+    "city": "Maturín",
+    "whsName": "Tienda MATURIN CENTRO",
+    "branchName": "MATURIN CENTRO",
+    "address": "Av. Alirio Ugarte Pelayo, Maturín 6201, Monagas"
+  },
+  {
+    "city": "Maturín",
+    "whsName": "ALMACEN PRINCIPAL MATURIN",
+    "branchName": "MATURIN",
+    "address": "n/a"
+  },
+  {
+    "city": "Puerto La Cruz",
+    "whsName": "Tienda PUERTO LA CRUZ PLAZA MAYOR",
+    "branchName": "PUERTO LA CRUZ PLAZA MAYOR",
+    "address": "Calle Sucre con calle Libertad a pocos metros de la plaza Bolivar, Puerto La Cruz, Anzoátegui. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Puerto La Cruz",
+    "whsName": "ALMACEN PRINCIPAL PUERTO LA CRUZ",
+    "branchName": "PUERTO LA CRUZ",
+    "address": "n/a"
+  },
+  {
+    "city": "Puerto Ordaz",
+    "whsName": "Tienda PUERTO ORDAZ ALTA VISTA",
+    "branchName": "PUERTO ORDAZ ALTA VISTA",
+    "address": "Urb. los Samanes, sector AltaVista, frente al centro medico Orinokia, Puerto Ordaz, Bolívar. 0412-3715863. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Puerto Ordaz",
+    "whsName": "Almacen Principal PUERTO ORDAZ",
+    "branchName": "PUERTO ORDAZ",
+    "address": "n/a"
+  },
+  {
+    "city": "San Cristóbal",
+    "whsName": "Tienda SAN CRISTOBAL BARRIO OBRERO",
+    "branchName": "SAN CRISTOBAL BARRIO OBRERO",
+    "address": "Calle 14 con carrera 4 al lado de la iglesia de la Ermita, sector centro, San Cristobal, Táchira. 0412-3167522. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "San Cristóbal",
+    "whsName": "Almacen Principal TACHIRA",
+    "branchName": "TACHIRA",
+    "address": "n/a"
+  },
+  {
+    "city": "San Felipe",
+    "whsName": "Tienda SAN FELIPE CENTRO",
+    "branchName": "SAN FELIPE CENTRO",
+    "address": "Av. Libertador, C.C. Yurubí, Nivel PB, Local L-08. San Felipe, Yaracuy."
+  },
+  {
+    "city": "San Felipe",
+    "whsName": "ALMACEN PRINCIPAL SAN FELIPE",
+    "branchName": "SAN FELIPE",
+    "address": "n/a"
+  },
+  {
+    "city": "Trujillo",
+    "whsName": "Tienda TRUJILLO CENTRO",
+    "branchName": "TRUJILLO CENTRO",
+    "address": "Urbanización La plata, frente la redoma Las banderas al lado del banco Provincial, Valera, Trujillo. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Trujillo",
+    "whsName": "ALMACEN PRINCIPAL TRUJILLO",
+    "branchName": "TRUJILLO",
+    "address": "n/a"
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Tienda VALENCIA CENTRO",
+    "branchName": "VALENCIA CENTRO",
+    "address": "Avenida 103 Carabobo, Valencia (Diagonal al Gran Bazar centro). 0412-3715859. Horario 9:00 am - 6:00 pm"
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Almacen SAN DIEGO",
+    "branchName": "SAN DIEGO",
+    "address": "Av Rojas Queipo, entre Av. Bolívar y distribuidor Paseo Cabriales. (Antiguo concesionario de carros). 04125136702"
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Almacen Principal VALENCIA",
+    "branchName": "VALENCIA",
+    "address": "n/a"
+  },
+  {
+    "city": "Valencia",
+    "whsName": "Almacén Principal Valencia 2",
+    "branchName": "VALENCIA 2",
+    "address": "n/a"
+  }
+]
