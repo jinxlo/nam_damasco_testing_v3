@@ -164,10 +164,8 @@ def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
         "final_message": ""
     }
 
-    # --- FIX: Wrap entire task logic in a try/finally to guarantee session cleanup. ---
     try:
-        try:
-            # ... (the rest of the original `try` block is nested inside here) ...
+        with db_utils.get_db_session() as session:
             try:
                 validated_product_snake = DamascoProductDataSnake(**product_data_dict_snake)
                 item_identifier_for_log = f"{validated_product_snake.item_code}_{validated_product_snake.warehouse_name}" # Update with validated data
@@ -203,9 +201,8 @@ def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
             processing_summary_logs["product_location_id"] = product_location_id
 
             existing_product_details = None
-            with db_utils.get_db_session() as read_session:
-                try:
-                    existing_product_db_entry = read_session.query(
+            try:
+                existing_product_db_entry = session.query(
                         Product.description,
                         Product.specifitacion,
                         Product.llm_summarized_description,
@@ -221,16 +218,16 @@ def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
                             "searchable_text_content": existing_product_db_entry.searchable_text_content,
                             "embedding": existing_product_db_entry.embedding 
                         }
-                        logger.debug(f"Task {task_id} ({product_location_id}): Found existing entry details.")
-                    else:
-                        logger.debug(f"Task {task_id} ({product_location_id}): No existing entry found in DB.")
-                except (SQLAlchemyOperationalError, CeleryOperationalError) as e_db_op_read:
-                    logger.error(f"Task {task_id} ({product_location_id}): Retriable DB/Broker error reading existing entry: {e_db_op_read}", exc_info=True)
-                    raise self.retry(exc=e_db_op_read)
-                except Exception as e_read:
-                    logger.error(f"Task {task_id} ({product_location_id}): Non-retriable error reading existing entry: {e_read}", exc_info=True)
-                    processing_summary_logs["status"] = "failed_db_read_error"
-                    raise Ignore(f"Failed to read existing product details due to non-retriable error: {e_read}")
+                    logger.debug(f"Task {task_id} ({product_location_id}): Found existing entry details.")
+                else:
+                    logger.debug(f"Task {task_id} ({product_location_id}): No existing entry found in DB.")
+            except (SQLAlchemyOperationalError, CeleryOperationalError) as e_db_op_read:
+                logger.error(f"Task {task_id} ({product_location_id}): Retriable DB/Broker error reading existing entry: {e_db_op_read}", exc_info=True)
+                raise self.retry(exc=e_db_op_read)
+            except Exception as e_read:
+                logger.error(f"Task {task_id} ({product_location_id}): Non-retriable error reading existing entry: {e_read}", exc_info=True)
+                processing_summary_logs["status"] = "failed_db_read_error"
+                raise Ignore(f"Failed to read existing product details due to non-retriable error: {e_read}")
 
             llm_summary_to_use: Optional[str] = None
             raw_html_incoming = validated_product_snake.description
@@ -344,9 +341,8 @@ def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
                  processing_summary_logs["status"] = "ignored_embedding_failed_critically"
                  raise Ignore("Critical failure obtaining embedding vector.")
 
-            with db_utils.get_db_session() as write_session:
-                success, op_type_or_error_msg = product_service.add_or_update_product_in_db(
-                    session=write_session,
+            success, op_type_or_error_msg = product_service.add_or_update_product_in_db(
+                    session=session,
                     product_location_id=product_location_id,
                     damasco_product_data_camel=product_data_camel,
                     embedding_vector=embedding_vector_to_pass,
@@ -416,15 +412,6 @@ def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
                 logger.info(f"Task {task_id} ({item_identifier_for_log}): Task called directly, not retrying unhandled exception.")
             logger.info(f"Task {task_id} ({item_identifier_for_log}) Processing Summary (Failed Exception): {processing_summary_logs}")
             return processing_summary_logs
-    finally:
-        # This is the crucial fix for session management in Celery.
-        # It ensures that the session is removed at the very end of the task,
-        # preventing stale sessions from being reused by the worker.
-        if db_utils.db_session:
-            db_utils.db_session.remove()
-            logger.debug(f"Task {task_id}: Database session removed via task-level finally block.")
-
-
 @celery_app.task(
     bind=True,
     base=FlaskTask,
@@ -444,64 +431,56 @@ def deactivate_product_task(self, product_id: str):
         "db_operation_status": "pending",
         "final_message": ""
     }
-    # --- FIX: Wrap entire task logic in a try/finally to guarantee session cleanup. ---
     try:
-        try:
-            with db_utils.get_db_session() as session:
-                entry = session.query(Product).filter_by(id=product_id_lower).first()
-                if entry:
-                    if entry.stock != 0:
-                        entry.stock = 0
-                        # --- FIX: Removed session.commit(). The context manager handles it. ---
-                        logger.info(f"Task {task_id}: Product_id: {product_id_lower} stock set to 0 for deactivation.")
-                        processing_summary_logs["db_operation_status"] = "stock_set_to_0"
-                    else:
-                        logger.info(f"Task {task_id}: Product_id: {product_id_lower} already has stock 0. No change needed.")
-                        processing_summary_logs["db_operation_status"] = "already_stock_0"
-                    
-                    processing_summary_logs["status"] = "success"
-                    processing_summary_logs["final_message"] = "Deactivation processed."
+        with db_utils.get_db_session() as session:
+            entry = session.query(Product).filter_by(id=product_id_lower).first()
+            if entry:
+                if entry.stock != 0:
+                    entry.stock = 0
+                    # --- FIX: Removed session.commit(). The context manager handles it. ---
+                    logger.info(f"Task {task_id}: Product_id: {product_id_lower} stock set to 0 for deactivation.")
+                    processing_summary_logs["db_operation_status"] = "stock_set_to_0"
                 else:
-                    logger.warning(f"Task {task_id}: Product_id {product_id_lower} not found for deactivation. No action taken.")
-                    processing_summary_logs["status"] = "ignored_not_found"
-                    processing_summary_logs["final_message"] = "Product not found."
-                    raise Ignore("Product not found for deactivation")
+                    logger.info(f"Task {task_id}: Product_id: {product_id_lower} already has stock 0. No change needed.")
+                    processing_summary_logs["db_operation_status"] = "already_stock_0"
 
-        except Ignore as e_ignore: 
-            ignore_reason = e_ignore.args[0] if e_ignore.args else "Unknown Ignore reason"
-            logger.warning(f"Task {task_id}: Deactivation task for {product_id_lower} ignored. Reason: {ignore_reason}")
-            processing_summary_logs["final_message"] = processing_summary_logs.get("final_message") or f"Ignored: {ignore_reason}"
-            processing_summary_logs["status"] = "ignored"
-        except (SQLAlchemyOperationalError, CeleryOperationalError) as e_op_deactivate:
-            logger.error(f"Task {task_id}: Retriable OperationalError during deactivation of {product_id_lower}: {e_op_deactivate}", exc_info=True)
-            processing_summary_logs["status"] = "retrying_operational_error"
-            processing_summary_logs["final_message"] = f"Retrying deactivation due to OperationalError: {str(e_op_deactivate)[:100]}"
+                processing_summary_logs["status"] = "success"
+                processing_summary_logs["final_message"] = "Deactivation processed."
+            else:
+                logger.warning(f"Task {task_id}: Product_id {product_id_lower} not found for deactivation. No action taken.")
+                processing_summary_logs["status"] = "ignored_not_found"
+                processing_summary_logs["final_message"] = "Product not found."
+                raise Ignore("Product not found for deactivation")
+
+    except Ignore as e_ignore:
+        ignore_reason = e_ignore.args[0] if e_ignore.args else "Unknown Ignore reason"
+        logger.warning(f"Task {task_id}: Deactivation task for {product_id_lower} ignored. Reason: {ignore_reason}")
+        processing_summary_logs["final_message"] = processing_summary_logs.get("final_message") or f"Ignored: {ignore_reason}"
+        processing_summary_logs["status"] = "ignored"
+    except (SQLAlchemyOperationalError, CeleryOperationalError) as e_op_deactivate:
+        logger.error(f"Task {task_id}: Retriable OperationalError during deactivation of {product_id_lower}: {e_op_deactivate}", exc_info=True)
+        processing_summary_logs["status"] = "retrying_operational_error"
+        processing_summary_logs["final_message"] = f"Retrying deactivation due to OperationalError: {str(e_op_deactivate)[:100]}"
+        try:
+            raise self.retry(exc=e_op_deactivate)
+        except MaxRetriesExceededError:
+            logger.critical(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after OperationalError. Error: {e_op_deactivate}", exc_info=True)
+            processing_summary_logs["status"] = "failed_max_retries_operational"
+            processing_summary_logs["final_message"] += " Max retries exceeded."
+    except Exception as exc:
+        logger.exception(f"Task {task_id}: Unexpected error during deactivation of product_id {product_id_lower}: {exc}")
+        processing_summary_logs["status"] = "failed_exception"
+        processing_summary_logs["final_message"] = f"Exception: {str(exc)[:200]}"
+        if not self.request.called_directly:
             try:
-                raise self.retry(exc=e_op_deactivate)
+                raise self.retry(exc=exc)
             except MaxRetriesExceededError:
-                logger.critical(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after OperationalError. Error: {e_op_deactivate}", exc_info=True)
-                processing_summary_logs["status"] = "failed_max_retries_operational"
-                processing_summary_logs["final_message"] += " Max retries exceeded."
-        except Exception as exc:
-            logger.exception(f"Task {task_id}: Unexpected error during deactivation of product_id {product_id_lower}: {exc}")
-            processing_summary_logs["status"] = "failed_exception"
-            processing_summary_logs["final_message"] = f"Exception: {str(exc)[:200]}"
-            if not self.request.called_directly:
-                try:
-                    raise self.retry(exc=exc)
-                except MaxRetriesExceededError:
-                     logger.error(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after generic exception. Error: {exc}", exc_info=True)
-                     processing_summary_logs["status"] = "failed_max_retries_unhandled"
-                     processing_summary_logs["final_message"] += " Max retries exceeded."
-                except Exception as retry_exc_inner:
-                     logger.error(f"Task {task_id} (deactivate_product_task): Error during retry mechanism for {product_id_lower}: {retry_exc_inner}", exc_info=True)
-                     processing_summary_logs["status"] = "failed_retry_mechanism_error"
-                     processing_summary_logs["final_message"] += " Error in retry mechanism."
-    finally:
-        logger.info(f"Task {task_id} Deactivation Summary: {processing_summary_logs}")
-        # This is the crucial fix for session management in Celery.
-        if db_utils.db_session:
-            db_utils.db_session.remove()
-            logger.debug(f"Task {task_id}: Database session removed via task-level finally block.")
-        # We return the summary logs *after* the session cleanup.
-        return processing_summary_logs
+                 logger.error(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after generic exception. Error: {exc}", exc_info=True)
+                 processing_summary_logs["status"] = "failed_max_retries_unhandled"
+                 processing_summary_logs["final_message"] += " Max retries exceeded."
+            except Exception as retry_exc_inner:
+                 logger.error(f"Task {task_id} (deactivate_product_task): Error during retry mechanism for {product_id_lower}: {retry_exc_inner}", exc_info=True)
+                 processing_summary_logs["status"] = "failed_retry_mechanism_error"
+                 processing_summary_logs["final_message"] += " Error in retry mechanism."
+    logger.info(f"Task {task_id} Deactivation Summary: {processing_summary_logs}")
+    return processing_summary_logs
