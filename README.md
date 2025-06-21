@@ -159,7 +159,8 @@ A key aspect is distinguishing messages from different sources to ensure correct
 | |-- tasks.py
 |-- data/ # Project-level data (e.g., SQL schema if not using migrations)
 | |-- schema.sql # Must include 'description', 'llm_summarized_description', and 'conversation_pauses' table
-|-- logs/ # Created at runtime for log files
+|-- logs/ # Created at runtime for log files (including **app.json** with timestamped JSON log entries)
+    * Utility `setup_json_file_logger` can be used by standalone scripts to attach a JSON logger
 |-- venv/ # Python virtual environment (.gitignored)
 |-- .env # Environment variables (SECRET! .gitignored)
 |-- .env.example # Example environment variables
