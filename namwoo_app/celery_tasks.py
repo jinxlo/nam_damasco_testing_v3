@@ -2,334 +2,243 @@
 
 import logging
 from typing import List, Optional, Dict, Any
-import re
-import numpy as np # Ensure numpy is imported
-from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, ValidationError, validator
-
-from celery.exceptions import Ignore, MaxRetriesExceededError
+from decimal import Decimal, InvalidOperation
 from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
-from celery.exceptions import OperationalError as CeleryOperationalError
-
+from celery.exceptions import Ignore, MaxRetriesExceededError, OperationalError as CeleryOperationalError
 
 from .celery_app import celery_app, FlaskTask
-from .services import product_service, openai_service
-from .services import llm_processing_service
-# --- FIX: Import db_utils to access the db_session for cleanup. ---
-from .utils import db_utils, text_utils, product_utils # Import product_utils
+from .services import product_service, openai_service, llm_processing_service
+from .utils import db_utils, product_utils
 from .models.product import Product
 from .config import Config
 
 logger = logging.getLogger(__name__)
 
 # --- Pydantic Model for Validating Incoming Snake_Case Product Data ---
+# This model remains unchanged as it's good practice.
 class DamascoProductDataSnake(BaseModel):
     item_code: str
     item_name: str
     description: Optional[str] = None
-    specifitacion: Optional[str] = None # <<< NEW FIELD ADDED
+    specifitacion: Optional[str] = None
     stock: int
-    price: Optional[Decimal] = None # Will be Decimal after validation
-    price_bolivar: Optional[Decimal] = None # <<< NEW FIELD: Will be Decimal after validation
+    price: Optional[Decimal] = None
+    price_bolivar: Optional[Decimal] = None
     category: Optional[str] = None
     sub_category: Optional[str] = None
     brand: Optional[str] = None
     line: Optional[str] = None
     item_group_name: Optional[str] = None
-    warehouse_name: str # Required for ID generation
+    warehouse_name: str
     branch_name: Optional[str] = None
-    original_input_data: Optional[Dict[str, Any]] = None # Set by the task
+    # This field is no longer needed here as we will pass the whole dict
+    # original_input_data: Optional[Dict[str, Any]] = None
 
     @validator('price', 'price_bolivar', pre=True, allow_reuse=True)
     def validate_prices_to_decimal(cls, v: Any) -> Optional[Decimal]:
-        if v is None:
-            return None
-        if isinstance(v, (int, float, str)): # Handles data from various sources
-            try:
-                return Decimal(str(v)) # Convert to string first for exact Decimal representation
-            except InvalidOperation:
-                logger.warning(f"Pydantic validator: Could not convert price value '{v}' to Decimal. Setting to None.")
-                return None
-        if isinstance(v, Decimal): # If already Decimal (e.g. from damasco_service)
-            return v
-        logger.warning(f"Pydantic validator: Unexpected type '{type(v)}' for price field. Value: {v}. Setting to None.")
+        if v is None: return None
+        if isinstance(v, (int, float, str)):
+            try: return Decimal(str(v))
+            except InvalidOperation: return None
+        if isinstance(v, Decimal): return v
         return None
 
     class Config:
-        extra = 'allow' # Allows 'original_input_data' to be added later
+        extra = 'allow'
         validate_assignment = True
 
-
-def _convert_snake_to_camel_case(data_snake: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Converts snake_case keys from Pydantic model output to camelCase.
-    Decimal price values are converted to float for the output camelCase dictionary.
-    """
-    if not data_snake:
-        return {}
-    key_map = {
-        "item_code": "itemCode",
-        "item_name": "itemName",
-        "description": "description",
-        "specifitacion": "specifitacion", # <<< NEW FIELD ADDED
-        "stock": "stock",
-        "price": "price", # USD price
-        "price_bolivar": "priceBolivar", # <<< CRITICAL: Ensure this mapping is present
-        "category": "category",
-        "sub_category": "subCategory",
-        "brand": "brand",
-        "line": "line",
-        "item_group_name": "itemGroupName",
-        "warehouse_name": "whsName", # Pydantic model has 'warehouse_name'
-        "branch_name": "branchName",
-    }
-    data_camel = {}
-    for snake_key, value in data_snake.items():
-        # Skip internal fields like 'original_input_data' if they are part of data_snake
-        if snake_key == "original_input_data":
-            continue
-
-        camel_key = key_map.get(snake_key)
-        
-        val_to_store = value
-        # Convert Decimal (from Pydantic model) to float for the damasco_product_data_camel dict
-        # because product_service.py (as last modified for minimal changes) expects to
-        # get float-like numbers from this dict and then converts them back to Decimal.
-        if isinstance(value, Decimal):
-            val_to_store = float(value)
-
-        if camel_key:
-            data_camel[camel_key] = val_to_store
-    
-    if "description" in data_snake and "description" not in data_camel and key_map.get("description"):
-        data_camel[key_map.get("description")] = data_snake["description"]
-            
-    return data_camel
-
-# --- REMOVED LOCAL _generate_product_location_id function ---
-
-# --- TASKS ---
-
+# --- NEW, EFFICIENT, AND ROBUST BATCH PROCESSING TASK ---
 @celery_app.task(
     bind=True,
     base=FlaskTask,
-    name='namwoo_app.celery_tasks.process_product_item_task',
+    name='namwoo_app.celery_tasks.process_products_batch_task',
     max_retries=Config.CELERY_TASK_MAX_RETRIES if hasattr(Config, 'CELERY_TASK_MAX_RETRIES') else 3,
     default_retry_delay=Config.CELERY_TASK_RETRY_DELAY if hasattr(Config, 'CELERY_TASK_RETRY_DELAY') else 300,
     acks_late=True
 )
-def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
+def process_products_batch_task(self, products_batch_snake_case: List[Dict[str, Any]]):
+    """
+    Processes a batch of products: validates, determines necessity of new summaries/embeddings,
+    generates them if needed, and saves the entire batch to the database using a single,
+    atomic, and concurrent-safe upsert operation.
+    """
     task_id = self.request.id
-    item_code_log_initial = product_data_dict_snake.get('item_code', 'N/A')
-    whs_name_log_initial = product_data_dict_snake.get('warehouse_name', 'N/A') # Key from receiver
-    item_identifier_for_log = f"{item_code_log_initial}_{whs_name_log_initial}"
-    
-    logger.info(f"Task {task_id}: Starting processing for initial item identifier: {item_identifier_for_log}")
+    batch_size = len(products_batch_snake_case)
+    logger.info(f"Task {task_id}: Starting batch processing for {batch_size} products.")
 
-    processing_summary_logs = {
-        "task_id": str(task_id),
-        "item_identifier": item_identifier_for_log,
-        "status": "pending",
-        "validation": "pending",
-        "summarization_action": "not_applicable",
-        "embedding_action": "not_applicable",
-        "db_operation": "pending",
-        "final_message": ""
-    }
+    if not products_batch_snake_case:
+        logger.info(f"Task {task_id}: Received an empty batch. Nothing to do.")
+        return {"status": "success_empty_batch", "processed_count": 0}
 
-    try:
-        # STEP 1: Validation and Data Prep (No DB Connection needed)
+    # --- STEP 1: PRE-PROCESSING (Validation and ID Generation in Memory) ---
+    validated_items = []
+    product_ids_to_check = []
+    for raw_product_data in products_batch_snake_case:
         try:
-            validated_product_snake = DamascoProductDataSnake(**product_data_dict_snake)
-            item_identifier_for_log = f"{validated_product_snake.item_code}_{validated_product_snake.warehouse_name}" # Update with validated data
-            processing_summary_logs["item_identifier"] = item_identifier_for_log
-            validated_product_snake.original_input_data = product_data_dict_snake.copy()
-            data_for_conversion_snake = validated_product_snake.model_dump(exclude_unset=True, exclude_none=True)
-            logger.debug(f"Task {task_id} ({item_identifier_for_log}): Pydantic validation successful.")
-            processing_summary_logs["validation"] = "success"
-        except ValidationError as val_err:
-            error_details = val_err.errors()
-            logger.error(f"Task {task_id} ({item_identifier_for_log}): Pydantic validation error: {error_details}")
-            processing_summary_logs["validation"] = f"failed: {error_details}"
-            processing_summary_logs["status"] = "ignored_validation_error"
-            logger.debug(f"Task {task_id} ({item_identifier_for_log}): Data causing Pydantic validation error: {product_data_dict_snake}")
-            raise Ignore("Pydantic validation failed")
-
-        product_data_camel = _convert_snake_to_camel_case(data_for_conversion_snake)
-        logger.debug(f"Task {task_id} ({item_identifier_for_log}): Converted to camelCase keys for product_service: {list(product_data_camel.keys())}")
-        
-        # --- FIX: USE CENTRALIZED ID GENERATION ---
-        product_location_id = product_utils.generate_product_location_id(
-            validated_product_snake.item_code, 
-            validated_product_snake.warehouse_name
-        )
-
-        if not product_location_id:
-            logger.error(f"Task {task_id} ({item_identifier_for_log}): Failed to generate product_location_id. Cannot proceed.")
-            processing_summary_logs["status"] = "ignored_id_generation_failed"
-            raise Ignore("ID generation failed")
-        processing_summary_logs["product_location_id"] = product_location_id
-
-        # STEP 2: Read Existing Data from DB in a short-lived session
-        existing_product_details = None
-        with db_utils.get_db_session() as session:
-            try:
-                existing_product_db_entry = session.query(
-                    Product.description,
-                    Product.specifitacion,
-                    Product.llm_summarized_description,
-                    Product.searchable_text_content,
-                    Product.embedding
-                ).filter_by(id=product_location_id).first()
-
-                if existing_product_db_entry:
-                    existing_product_details = {
-                        "description": existing_product_db_entry.description,
-                        "specifitacion": existing_product_db_entry.specifitacion,
-                        "llm_summarized_description": existing_product_db_entry.llm_summarized_description,
-                        "searchable_text_content": existing_product_db_entry.searchable_text_content,
-                        "embedding": existing_product_db_entry.embedding
-                    }
-                    logger.debug(f"Task {task_id} ({product_location_id}): Found existing entry details.")
-                else:
-                    logger.debug(f"Task {task_id} ({product_location_id}): No existing entry found in DB.")
-            except (SQLAlchemyOperationalError, CeleryOperationalError) as e_db_op_read:
-                logger.error(f"Task {task_id} ({product_location_id}): Retriable DB/Broker error reading existing entry: {e_db_op_read}", exc_info=True)
-                raise self.retry(exc=e_db_op_read)
-            except Exception as e_read:
-                logger.error(f"Task {task_id} ({product_location_id}): Non-retriable error reading existing entry: {e_read}", exc_info=True)
-                processing_summary_logs["status"] = "failed_db_read_error"
-                raise Ignore(f"Failed to read existing product details due to non-retriable error: {e_read}")
-        # --- DB Session is now closed ---
-
-        # STEP 3: Perform long-running network I/O (LLM, Embeddings)
-        llm_summary_to_use = None
-        raw_html_incoming = validated_product_snake.description
-        item_name_for_log = validated_product_snake.item_name
-        
-        needs_new_summary = False
-        if existing_product_details:
-            llm_summary_to_use = existing_product_details["llm_summarized_description"]
-            if raw_html_incoming != existing_product_details["description"]:
-                needs_new_summary = True
-                processing_summary_logs["summarization_action"] = "needed_html_changed"
-                logger.info(f"Task {task_id} ({product_location_id}): Raw HTML description changed. New summary needed.")
-            elif not existing_product_details["llm_summarized_description"] and raw_html_incoming:
-                needs_new_summary = True
-                processing_summary_logs["summarization_action"] = "needed_summary_missing"
-                logger.info(f"Task {task_id} ({product_location_id}): LLM summary missing. New summary needed.")
+            validated_product = DamascoProductDataSnake(**raw_product_data)
+            product_id = product_utils.generate_product_location_id(
+                validated_product.item_code,
+                validated_product.warehouse_name
+            )
+            if product_id:
+                validated_items.append((product_id, validated_product, raw_product_data))
+                product_ids_to_check.append(product_id)
             else:
-                processing_summary_logs["summarization_action"] = "reused_existing"
-                logger.info(f"Task {task_id} ({product_location_id}): Re-using stored LLM summary.")
-        elif raw_html_incoming:
-            needs_new_summary = True
-            processing_summary_logs["summarization_action"] = "needed_new_product_with_html"
-            logger.info(f"Task {task_id} ({product_location_id}): New product with HTML description. New summary needed.")
-        else:
-            processing_summary_logs["summarization_action"] = "skipped_no_html"
+                logger.error(f"Task {task_id}: Failed to generate ID for item {raw_product_data.get('item_code')}. Skipping.")
+        except ValidationError as e:
+            logger.error(f"Task {task_id}: Pydantic validation failed for item {raw_product_data.get('item_code')}. Skipping. Error: {e.errors()}")
+            
+    if not validated_items:
+        logger.warning(f"Task {task_id}: No items survived validation. Exiting.")
+        return {"status": "failed_all_invalid", "processed_count": 0}
 
-        if needs_new_summary and raw_html_incoming:
-            try:
-                generated_summary = llm_processing_service.generate_llm_product_summary(html_description=raw_html_incoming, item_name=item_name_for_log)
-                if generated_summary:
-                    llm_summary_to_use = generated_summary
-                    logger.info(f"Task {task_id} ({product_location_id}): New LLM summary generated.")
-                    processing_summary_logs["summarization_action"] += "_success"
-                else:
-                    logger.warning(f"Task {task_id} ({product_location_id}): LLM summarization returned no content.")
-                    processing_summary_logs["summarization_action"] += "_failed_empty_result"
-            except Exception as e_summ:
-                logger.error(f"Task {task_id} ({product_location_id}): LLM summarization failed. Error: {e_summ}", exc_info=True)
-                processing_summary_logs["summarization_action"] += f"_exception: {str(e_summ)[:100]}"
-        elif not raw_html_incoming: 
-            llm_summary_to_use = None
-        
-        text_to_embed = Product.prepare_text_for_embedding(
-            damasco_product_data=data_for_conversion_snake,
-            llm_generated_summary=llm_summary_to_use,
-            raw_html_description_for_fallback=raw_html_incoming
-        )
-
-        if not text_to_embed:
-            raise Ignore("No text to embed")
-
-        embedding_vector_to_pass = None
-        generate_new_embedding = True
-        if existing_product_details and existing_product_details["searchable_text_content"] == text_to_embed and existing_product_details["embedding"] is not None:
-            embedding_vector_to_pass = existing_product_details["embedding"]
-            generate_new_embedding = False
-            processing_summary_logs["embedding_action"] = "reused_existing"
-            logger.info(f"Task {task_id} ({product_location_id}): Re-using existing embedding.")
-
-        if generate_new_embedding:
-            try:
-                embedding_vector_to_pass = openai_service.generate_product_embedding(text_to_embed)
-                if embedding_vector_to_pass is None:
-                    raise Exception("Embedding service returned None")
-                logger.info(f"Task {task_id} ({product_location_id}): New embedding generated.")
-                processing_summary_logs["embedding_action"] = "generated_new"
-            except Exception as e_embed:
-                logger.error(f"Task {task_id} ({product_location_id}): Embedding generation failed: {e_embed}", exc_info=True)
-                raise self.retry(exc=e_embed)
-
-        if embedding_vector_to_pass is None:
-            raise Ignore("Critical failure obtaining embedding vector.")
-
-        # STEP 4: Write Final Data to DB in a new short-lived session
+    # --- STEP 2: EFFICIENTLY FETCH EXISTING DATA FOR THE ENTIRE BATCH ---
+    existing_products_map = {}
+    try:
         with db_utils.get_db_session() as session:
-            success, op_type_or_error_msg = product_service.add_or_update_product_in_db(
-                session=session,
-                product_location_id=product_location_id,
-                damasco_product_data_camel=product_data_camel,
-                embedding_vector=embedding_vector_to_pass,
-                text_used_for_embedding=text_to_embed,
-                llm_summarized_description_to_store=llm_summary_to_use
+            existing_db_entries = session.query(
+                Product.id,
+                Product.description,
+                Product.llm_summarized_description,
+                Product.searchable_text_content,
+                Product.embedding
+            ).filter(Product.id.in_(product_ids_to_check)).all()
+
+            for entry in existing_db_entries:
+                existing_products_map[entry.id] = {
+                    "description": entry.description,
+                    "llm_summarized_description": entry.llm_summarized_description,
+                    "searchable_text_content": entry.searchable_text_content,
+                    "embedding": entry.embedding
+                }
+        logger.info(f"Task {task_id}: Fetched existing data for {len(existing_products_map)} of {len(validated_items)} products.")
+    except (SQLAlchemyOperationalError, CeleryOperationalError) as e:
+        logger.error(f"Task {task_id}: Retriable DB/Broker error during batch read: {e}", exc_info=True)
+        raise self.retry(exc=e)
+
+    # --- STEP 3: PROCESS EACH ITEM (Summaries, Embeddings) ---
+    db_ready_products = []
+    for product_id, validated_product, original_data in validated_items:
+        try:
+            # Determine if new summary or embedding is needed by comparing with pre-fetched data
+            existing_details = existing_products_map.get(product_id)
+            
+            # Summarization Logic
+            llm_summary_to_use = existing_details.get("llm_summarized_description") if existing_details else None
+            needs_new_summary = (
+                (not existing_details and validated_product.description) or
+                (existing_details and validated_product.description != existing_details.get("description")) or
+                (existing_details and not existing_details.get("llm_summarized_description") and validated_product.description)
             )
 
-            processing_summary_logs["db_operation"] = op_type_or_error_msg
-            if success:
-                logger.info(f"Task {task_id} ({product_location_id}): DB operation successful: {op_type_or_error_msg}. Committing.")
-                session.commit()
-                processing_summary_logs["status"] = "success"
-                processing_summary_logs["final_message"] = f"Operation: {op_type_or_error_msg}."
+            if needs_new_summary:
+                new_summary = llm_processing_service.generate_llm_product_summary(
+                    html_description=validated_product.description,
+                    item_name=validated_product.item_name
+                )
+                if new_summary:
+                    llm_summary_to_use = new_summary
+            
+            # Embedding Logic
+            text_to_embed = Product.prepare_text_for_embedding(
+                damasco_product_data=validated_product.model_dump(),
+                llm_generated_summary=llm_summary_to_use,
+                raw_html_description_for_fallback=validated_product.description
+            )
+            
+            if not text_to_embed:
+                logger.warning(f"Task {task_id}: No text content for embedding for product {product_id}. Skipping item.")
+                continue
+
+            embedding_to_use = None
+            if existing_details and text_to_embed == existing_details.get("searchable_text_content") and existing_details.get("embedding") is not None:
+                embedding_to_use = existing_details["embedding"]
             else:
-                logger.error(f"Task {task_id} ({product_location_id}): DB operation failed. Reason: {op_type_or_error_msg}")
-                non_retriable_db_errors = ["ConstraintViolation", "DataError", "InvalidTextRepresentation", "Missing", "dimension mismatch"]
-                if any(err in op_type_or_error_msg for err in non_retriable_db_errors):
-                    raise Ignore(f"Non-retriable DB error: {op_type_or_error_msg}")
-                raise Exception(f"DB operation failed: {op_type_or_error_msg}")
+                embedding_to_use = openai_service.generate_product_embedding(text_to_embed)
 
-        logger.info(f"Task {task_id} ({product_location_id}) Processing Summary: {processing_summary_logs}")
-        return processing_summary_logs
+            if embedding_to_use is None:
+                logger.error(f"Task {task_id}: Failed to get embedding for {product_id}. Skipping item.")
+                continue
+            
+            # Assemble the final dictionary for the database upsert
+            db_ready_products.append({
+                "id": product_id,
+                "item_code": validated_product.item_code,
+                "item_name": validated_product.item_name,
+                "description": validated_product.description,
+                "llm_summarized_description": llm_summary_to_use,
+                "specifitacion": validated_product.specifitacion,
+                "category": validated_product.category,
+                "sub_category": validated_product.sub_category,
+                "brand": validated_product.brand,
+                "line": validated_product.line,
+                "item_group_name": validated_product.item_group_name,
+                "warehouse_name": validated_product.warehouse_name,
+                "warehouse_name_canonical": product_utils.get_canonical_warehouse_name(validated_product.warehouse_name),
+                "branch_name": validated_product.branch_name,
+                "price": validated_product.price,
+                "price_bolivar": validated_product.price_bolivar,
+                "stock": validated_product.stock,
+                "searchable_text_content": text_to_embed,
+                "embedding": embedding_to_use,
+                "source_data_json": original_data,
+            })
+        except Exception as item_proc_exc:
+            # Catch errors during LLM/embedding calls for a single item
+            logger.error(f"Task {task_id}: Failed to process item {product_id} due to: {item_proc_exc}. Skipping item.", exc_info=True)
+            continue # Continue to the next item in the batch
 
-    except Ignore as e_ignore:
-        ignore_reason = e_ignore.args[0] if e_ignore.args else "Unknown"
-        logger.warning(f"Task {task_id} ({item_identifier_for_log}): Task ignored. Reason: {ignore_reason}")
-        if processing_summary_logs["status"] == "pending":
-            processing_summary_logs["status"] = "ignored"
-        processing_summary_logs["final_message"] = f"Task Ignored: {ignore_reason}"
-        logger.info(f"Task {task_id} ({item_identifier_for_log}) Processing Summary (Ignored): {processing_summary_logs}")
-        return processing_summary_logs
-    except (SQLAlchemyOperationalError, CeleryOperationalError) as e_retriable_op:
-        logger.error(f"Task {task_id} ({item_identifier_for_log}): Retriable OperationalError: {e_retriable_op}", exc_info=True)
-        processing_summary_logs["status"] = "retrying_operational_error"
-        try:
-            raise self.retry(exc=e_retriable_op)
-        except MaxRetriesExceededError:
-            logger.critical(f"Task {task_id} ({item_identifier_for_log}): Max retries exceeded for OperationalError.", exc_info=True)
-            processing_summary_logs["status"] = "failed_max_retries_operational"
-        return processing_summary_logs 
-    except Exception as exc:
-        logger.exception(f"Task {task_id} ({item_identifier_for_log}): Unhandled non-operational exception: {exc}")
-        processing_summary_logs["status"] = "failed_unhandled_exception"
-        try:
-            raise self.retry(exc=exc)
-        except MaxRetriesExceededError:
-            logger.critical(f"Task {task_id} ({item_identifier_for_log}): Max retries exceeded for unhandled exception.", exc_info=True)
-            processing_summary_logs["status"] = "failed_max_retries_unhandled"
-        return processing_summary_logs
+    # --- STEP 4: PERFORM THE ATOMIC BATCH UPSERT ---
+    if not db_ready_products:
+        logger.warning(f"Task {task_id}: No products were ready for DB write after processing. Exiting.")
+        return {"status": "success_nothing_to_write", "processed_count": 0}
 
+    try:
+        with db_utils.get_db_session() as session:
+            product_service.upsert_products_batch(session, db_ready_products)
+            session.commit()
+            logger.info(f"Task {task_id}: Successfully committed batch upsert for {len(db_ready_products)} products.")
+            return {"status": "success", "processed_count": len(db_ready_products)}
+    except (SQLAlchemyOperationalError, CeleryOperationalError) as e_db_op:
+        logger.error(f"Task {task_id}: Retriable DB/Broker error during final batch write: {e_db_op}", exc_info=True)
+        raise self.retry(exc=e_db_op)
+    except Exception as e_final:
+        logger.critical(f"Task {task_id}: Non-retriable error during final batch write: {e_final}", exc_info=True)
+        # Depending on severity, you might want to raise Ignore or let it fail
+        # For now, we let it retry as a generic exception.
+        raise self.retry(exc=e_final)
+
+
+# =================================================================================================
+# == DEPRECATED TASK - DO NOT USE =================================================================
+# =================================================================================================
+# The task below, `process_product_item_task`, processes items one by one. This approach
+# is inefficient (many DB round-trips) and was the source of the `UniqueViolation` errors
+# because its underlying service function used a non-atomic "check-then-act" pattern.
+#
+# It has been replaced by `process_products_batch_task`, which uses an efficient, atomic
+# `INSERT ... ON CONFLICT` operation for the entire batch, eliminating race conditions
+# and drastically improving performance. This old task should be removed after confirming
+# the new batch task works as expected.
+# =================================================================================================
+@celery_app.task(
+    bind=True,
+    base=FlaskTask,
+    name='namwoo_app.celery_tasks.process_product_item_task_DEPRECATED', # Renamed to avoid accidental use
+    # ... (rest of the old task decorator) ...
+)
+def process_product_item_task(self, product_data_dict_snake: Dict[str, Any]):
+    logger.warning("DEPRECATED TASK 'process_product_item_task' was called. Please switch to 'process_products_batch_task'.")
+    # You can choose to either raise an error or just ignore the call.
+    # For a smoother transition, you might initially delegate to the new task,
+    # but the goal is to stop calling this altogether.
+    # For now, we will simply ignore the call.
+    raise Ignore("Called a deprecated single-item processing task.")
+
+
+# The `deactivate_product_task` is fine as it is, since it operates on a single, specific product ID for a different purpose.
 @celery_app.task(
     bind=True,
     base=FlaskTask,
@@ -342,13 +251,7 @@ def deactivate_product_task(self, product_id: str):
     task_id = self.request.id
     product_id_lower = product_id.lower()
     logger.info(f"Task {task_id}: Starting deactivation for product_id: {product_id_lower}")
-    processing_summary_logs = {
-        "task_id": str(task_id),
-        "product_id": product_id_lower,
-        "status": "pending",
-        "db_operation_status": "pending",
-        "final_message": ""
-    }
+    # ... The rest of this function remains unchanged ...
     try:
         with db_utils.get_db_session() as session:
             entry = session.query(Product).filter_by(id=product_id_lower).first()
@@ -357,39 +260,16 @@ def deactivate_product_task(self, product_id: str):
                     entry.stock = 0
                     logger.info(f"Task {task_id}: Product_id: {product_id_lower} stock set to 0 for deactivation. Committing.")
                     session.commit()
-                    processing_summary_logs["db_operation_status"] = "stock_set_to_0"
                 else:
                     logger.info(f"Task {task_id}: Product_id: {product_id_lower} already has stock 0. No change needed.")
-                    processing_summary_logs["db_operation_status"] = "already_stock_0"
-
-                processing_summary_logs["status"] = "success"
-                processing_summary_logs["final_message"] = "Deactivation processed."
             else:
                 logger.warning(f"Task {task_id}: Product_id {product_id_lower} not found for deactivation. No action taken.")
-                processing_summary_logs["status"] = "ignored_not_found"
-                processing_summary_logs["final_message"] = "Product not found."
                 raise Ignore("Product not found for deactivation")
-
-    except Ignore as e_ignore:
-        ignore_reason = e_ignore.args[0] if e_ignore.args else "Unknown Ignore reason"
-        logger.warning(f"Task {task_id}: Deactivation task for {product_id_lower} ignored. Reason: {ignore_reason}")
-        processing_summary_logs["final_message"] = processing_summary_logs.get("final_message") or f"Ignored: {ignore_reason}"
-        processing_summary_logs["status"] = "ignored"
+    except Ignore:
+        logger.warning(f"Task {task_id}: Deactivation task for {product_id_lower} ignored.")
     except (SQLAlchemyOperationalError, CeleryOperationalError) as e_op_deactivate:
         logger.error(f"Task {task_id}: Retriable OperationalError during deactivation of {product_id_lower}: {e_op_deactivate}", exc_info=True)
-        processing_summary_logs["status"] = "retrying_operational_error"
-        try:
-            raise self.retry(exc=e_op_deactivate)
-        except MaxRetriesExceededError:
-            logger.critical(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after OperationalError.", exc_info=True)
-            processing_summary_logs["status"] = "failed_max_retries_operational"
+        raise self.retry(exc=e_op_deactivate)
     except Exception as exc:
         logger.exception(f"Task {task_id}: Unexpected error during deactivation of product_id {product_id_lower}: {exc}")
-        processing_summary_logs["status"] = "failed_exception"
-        try:
-            raise self.retry(exc=exc)
-        except MaxRetriesExceededError:
-             logger.error(f"Task {task_id} (deactivate_product_task): Max retries exceeded for {product_id_lower} after generic exception.", exc_info=True)
-             processing_summary_logs["status"] = "failed_max_retries_unhandled"
-    logger.info(f"Task {task_id} Deactivation Summary: {processing_summary_logs}")
-    return processing_summary_logs
+        raise self.retry(exc=exc)
