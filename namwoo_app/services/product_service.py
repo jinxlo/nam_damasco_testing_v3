@@ -9,8 +9,6 @@ from datetime import datetime
 import numpy as np
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy import text
 
 from ..models.product import Product
 from ..utils import db_utils, embedding_utils, text_utils
@@ -237,17 +235,27 @@ def add_or_update_product_in_db(
     }
 
     try:
-        stmt = pg_insert(Product).values(id=product_location_id, **new_map)
-
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[text("LOWER(item_code)"), "warehouse_name_canonical"],
-            set_={**new_map, "updated_at": datetime.utcnow()}
-        )
-
-        session.execute(stmt)
-        # --- FIX: REMOVED session.commit() and all transaction logic. ---
-        # The calling context (e.g., 'with get_db_session()') is responsible for transaction management.
-        return True, "upserted"
+        existing = session.query(Product).filter_by(id=product_location_id).first()
+        if existing:
+            changed = False
+            for field, value in new_map.items():
+                if field == "embedding":
+                    existing_val = list(existing.embedding) if existing.embedding is not None else None
+                    if existing_val != value:
+                        setattr(existing, field, value)
+                        changed = True
+                else:
+                    if getattr(existing, field) != value:
+                        setattr(existing, field, value)
+                        changed = True
+            if not changed:
+                return True, "unchanged"
+            existing.updated_at = datetime.utcnow()
+            return True, "updated"
+        else:
+            new_product = Product(id=product_location_id, **new_map)
+            session.add(new_product)
+            return True, "inserted"
 
     except SQLAlchemyError as db_exc:
         # The rollback will be handled by the context manager.
