@@ -20,7 +20,7 @@ def generate_product_location_id(item_code_raw: Any, whs_name_raw: Any) -> Optio
         return None 
 
     sanitized_whs_name = re.sub(r'[^a-zA-Z0-9_-]', '_', whs_name)
-    product_id = f"{item_code}_{sanitized_whs_name}"
+    product_id = f"{item_code}_{sanitized_whs_name}".lower() # <<< FIX: ADDED .lower() FOR CONSISTENCY
     if len(product_id) > 512: # Max length of Product.id
         # logger.warning(f"Generated product_location_id for {item_code} was truncated to 512 chars.")
         product_id = product_id[:512]

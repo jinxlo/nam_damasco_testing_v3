@@ -69,20 +69,21 @@ def init_db(app) -> bool:
 @contextmanager
 def get_db_session() -> Generator[Optional[SQLAlchemySession], None, None]: # Use SQLAlchemySession type hint
     """
-    Yields a SQLAlchemy Session, handles commit/rollback, and always removes session from scope.
+    Yields a SQLAlchemy Session, handles rollback on error, and always removes the session.
+    The caller is responsible for committing the session.
     Always use via: `with get_db_session() as session:`
     """
     if not db_session:
         logger.error("db_session (ScopedSessionFactory) not initialized. Cannot create DB session.")
-        yield None # Make sure to yield None if there's an issue
+        yield None 
         return
 
     session: SQLAlchemySession = db_session()
     logger.debug(f"DB Session {id(session)} acquired from ScopedSessionFactory.")
     try:
         yield session
-        session.commit()
-        logger.debug(f"DB Session {id(session)} committed.")
+        # <<< FIX: REMOVED a session.commit() FROM HERE. >>>
+        # The caller is now 100% responsible for committing transactions.
     except SQLAlchemyError as e:
         logger.error(f"DB Session {id(session)} SQLAlchemy error: {e}", exc_info=True)
         session.rollback()
@@ -107,8 +108,6 @@ def create_all_tables(app) -> bool:
         return False
     try:
         logger.info("Attempting to create tables from SQLAlchemy models (if they don't already exist)...")
-        # Ensure your ConversationPause model is imported and part of Base.metadata
-        # from ..models.conversation_pause import ConversationPause # This should be at the top
         Base.metadata.create_all(bind=_engine)
         logger.info("SQLAlchemy Base.metadata.create_all() executed.")
 
@@ -152,7 +151,7 @@ def save_history(session_id: str, history_list: List[Dict]) -> bool:
             else:
                 record = ConversationHistory(session_id=session_id, history_data=history_list)
                 session.add(record)
-            # Commit is handled by the context manager
+            session.commit() # This function needs to commit its own unit of work.
             return True
         except Exception as e:
             logger.exception(f"Error saving history for session {session_id}: {e}")
@@ -217,11 +216,10 @@ def pause_conversation_for_duration(conversation_id: str, duration_seconds: int)
                 pause_record = ConversationPause(conversation_id=conversation_id, paused_until=pause_until_time)
                 session.add(pause_record)
                 logger.info(f"Setting new pause for conversation {conversation_id} until {pause_until_time.isoformat()}.")
-            # Commit is handled by the context manager
+            session.commit() # This function needs to commit its own unit of work.
             logger.debug(f"Pause set/updated in DB for conversation {conversation_id}.")
         except Exception as e:
             logger.exception(f"Error pausing conversation {conversation_id}: {e}")
-            # Rollback is handled by the context manager
 
 def unpause_conversation(conversation_id: str):
     """Removes any active pause for a conversation by setting paused_until to a past time or deleting."""
@@ -230,25 +228,12 @@ def unpause_conversation(conversation_id: str):
             logger.error(f"Cannot unpause conv {conversation_id}: DB session not available.")
             return
         try:
-            # Option 1: Set paused_until to now (or slightly in the past) to effectively unpause
-            # now_utc = datetime.datetime.now(timezone.utc)
-            # updated_count = session.query(ConversationPause)\
-            #     .filter(ConversationPause.conversation_id == conversation_id)\
-            #     .update({"paused_until": now_utc - datetime.timedelta(seconds=1)}) # Mark as expired
-            # if updated_count > 0:
-            #    logger.info(f"Effectively unpaused conversation {conversation_id} by updating paused_until.")
-            # else:
-            #    logger.info(f"No active pause record found to unpause for conversation {conversation_id} by update.")
-
-            # Option 2: Delete the pause record (simpler if you don't need to keep history of pauses)
             pause_record = session.query(ConversationPause).filter_by(conversation_id=conversation_id).first()
             if pause_record:
                 session.delete(pause_record)
                 logger.info(f"Deleted pause record for conversation {conversation_id}, effectively unpausing it.")
+                session.commit() # This function needs to commit its own unit of work.
             else:
                 logger.info(f"No pause record found to delete for conversation {conversation_id}.")
-
-            # Commit is handled by the context manager
         except Exception as e:
             logger.exception(f"Error unpausing conversation {conversation_id}: {e}")
-            # Rollback is handled by the context manager
